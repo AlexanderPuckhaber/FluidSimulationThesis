@@ -403,7 +403,7 @@ class ContinuityEquationDeltaSPH(Equation):
 
     def loop(self, d_idx, d_arho, s_idx, s_m, d_cs, s_cs, d_rho, s_rho,
              DWIJ, VIJ, XIJ, RIJ, HIJ, EPS):
-
+        print('continuity yay')
         rhoi = d_rho[d_idx]
         rhoj = s_rho[s_idx]
         Vj = s_m[s_idx]/rhoj

@@ -114,9 +114,9 @@ class HydrostaticTankMaterials(Application):
         
             # actually, i am skipping this
         
-        print("Hydrostatic tank :: nfluid = %d, nsolid = %d, dt = %g"%(
+        ''' print("Hydrostatic tank :: nfluid = %d, nsolid = %d, dt = %g"%(
             fluid.get_number_of_particles(),
-            solid.get_number_of_particles(), dt))
+            solid.get_number_of_particles(), dt)) '''
         
         ###### ADD PARTICLE PROPS FOR MULTI-PHASE SPH ######
 
@@ -171,7 +171,7 @@ class HydrostaticTankMaterials(Application):
         fluid.set_output_arrays(properties_to_save)
         
 
-        print('fluid material amount: ', fluid.material_amount, 'fluid props', fluid.properties.keys())
+        #print('fluid material amount: ', fluid.material_amount, 'fluid props', fluid.properties.keys())
 
         # return the particle list
         return [fluid, solid]

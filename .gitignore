@@ -18,3 +18,4 @@ dist/
 *.out
 *_output
 pysph/examples/test_runs
+pysph/examples/hydrostatic_tank_mixing_tests

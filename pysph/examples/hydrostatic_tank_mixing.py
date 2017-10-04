@@ -94,11 +94,19 @@ class HydrostaticTankMaterials(Application):
     def create_particles(self):
 
         # create mixture particle
-        materials = MixtureParticle()
-        materials.addMaterial('water')
-        materials.addMaterial('oil')
+        materials = MixtureParticle(baseProperties={'h':0.025, 'rho': 1})
+        materials.addMaterial('water', {'_frac':0.8, 'm':0.10})
+        materials.addMaterial('oil', {'_frac':0.2, 'm':0.09})
 
         print(materials.getMaterialList())
+
+        print(materials.generateFullParticleProperties())
+
+        materials.addMaterialProperties('oil', {'rho':.008})
+
+        print(materials.getMaterialList())
+
+        print(materials.generateFullParticleProperties())
 
         # create all the particles
         _x = np.arange( -ghost_extent, length_x + ghost_extent, dx )

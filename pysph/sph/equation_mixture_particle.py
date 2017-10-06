@@ -2,7 +2,7 @@ import equation
 
 class EquationMixtureParticle(object):
     def __init__(self):
-        super(Base, self).__init__()
+        super(equation, self).__init__()
     
     def get_arrays_used_in_equation(equation):
         """Return two sets, the source and destination arrays used by the equation.

@@ -22,9 +22,15 @@ class MixtureParticle(object):
     
     def addMaterialProperties(self, materialString=str, materialProperties={}):
         self.materials[materialString].update(materialProperties)
+    
+    def addMaterialDriftVelocities(self, dim=int):
+        dimensionsToAdd = ['x', 'y', 'z']
+        for material in self.materials:
+            for i in range(0, dim):
+                self.addMaterialProperties(material, {str('drift_velocity_' + dimensionsToAdd[i]): 0})
 
     def removeMaterial(self, materialString=str):
-        self.materialList.pop(materialString, None)
+        self.materials.pop(materialString, None)
     
     def getMaterialList(self):
         return self.materials
@@ -33,7 +39,13 @@ class MixtureParticle(object):
         return self.baseProperties
 
     def getMaterialProperties(self, materialString=str):
-        return self.materialList[materialString]
+        return self.materials[materialString]
+
+    def getMaterialProperty(self, materialString=str, propertyString=str):
+        return self.materials[materialString].get(propertyString)
+
+    def getPropertyValue(self, propertyString=str):
+        return self.fullParticleProperties.get(propertyString)
 
     def generateFullParticleProperties(self):
         self.fullParticleProperties = {}
@@ -49,7 +61,7 @@ class MixtureParticle(object):
             # self.fullParticleProperties.update({'frac_' + materialName: {self.materials[material].get('_frac')}})
             tmp = {}
             for materialProperty in self.materials[material]:
-                tmp.update({materialName + '_' + materialProperty: self.materials[material].get(materialProperty)})
+                tmp.update({materialName + '_' + materialProperty: str(self.getMaterialProperty(material, materialProperty))})
             self.fullParticleProperties.update(tmp)
         
         return self.fullParticleProperties

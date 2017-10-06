@@ -73,7 +73,7 @@ dt_viscous = 0.125 * h0**2/nu
 dt_force = 0.25 * np.sqrt(h0/abs(gravity_y))
 
 tdamp = 1.0
-tf = 16.0
+tf = 4.0
 dt = 0.75 * min(dt_cfl, dt_viscous, dt_force)
 output_at_times = np.arange(0.25, 2.1, 0.25)
 
@@ -94,15 +94,16 @@ class HydrostaticTankMaterials(Application):
     def create_particles(self):
 
         # create mixture particle
-        materials = MixtureParticle(baseProperties={'h':0.025, 'rho': 1})
+        materials = MixtureParticle()
         materials.addMaterial('water', {'_frac':0.8, 'm':0.10})
         materials.addMaterial('oil', {'_frac':0.2, 'm':0.09})
 
         print(materials.getMaterialList())
 
-        print(materials.generateFullParticleProperties())
+        print('FULL PARTICLE PROPERTIES:', materials.generateFullParticleProperties())
 
         materials.addMaterialProperties('oil', {'rho':.008})
+        materials.addMaterialDriftVelocities(dim=2)
 
         print(materials.getMaterialList())
 
@@ -172,6 +173,16 @@ class HydrostaticTankMaterials(Application):
         for name in ('auhat', 'avhat', 'awhat'):
             water.add_property(name)
             oil.add_property(name)
+
+        for propertyName in materials.generateFullParticleProperties():
+            water.add_property(propertyName, type='double', default=materials.getPropertyValue(propertyName))
+            oil.add_property(propertyName, type='double', default=materials.getPropertyValue(propertyName))
+
+        print('water default', water.default_values)
+        print('oil default', oil.default_values)
+
+        # water.copy_over_properties(materials.generateFullParticleProperties())
+        # oil.copy_over_properties(materials.generateFullParticleProperties())
         
         ##### INITIALIZE PARTICLE PROPS #####
         water.rho[:] = rho0
@@ -191,7 +202,7 @@ class HydrostaticTankMaterials(Application):
         solid.V[:] = 1./volume
 
         water.m[:] = volume * rho0
-        oil.m[:] = volume * rho0 * .9
+        oil.m[:] = volume * rho0 * 0.5
         solid.m[:] = volume * rho0
 
         # smoothing lengths
@@ -201,6 +212,14 @@ class HydrostaticTankMaterials(Application):
 
         
         properties_to_save = ['pid', 'tag', 'gid', 'rho', 'V', 'h', 'm', 'p', 'u', 'w', 'v', 'y', 'x', 'div', 'z']
+
+        for propertyName in materials.generateFullParticleProperties():
+            properties_to_save.append(propertyName)
+
+        print('properties to save', properties_to_save)
+
+        water.align_particles()
+        oil.align_particles()
 
         water.set_output_arrays(properties_to_save)
         oil.set_output_arrays(properties_to_save)

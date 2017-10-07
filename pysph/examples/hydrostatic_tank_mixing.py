@@ -186,7 +186,7 @@ class HydrostaticTankMaterials(Application):
         
         ##### INITIALIZE PARTICLE PROPS #####
         water.rho[:] = rho0
-        oil.rho[:] = rho0
+        oil.rho[:] = rho0 * 0.9
         solid.rho[:] = rho0
 
         water.rho0[:] = rho0

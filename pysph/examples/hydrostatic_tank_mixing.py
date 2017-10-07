@@ -73,7 +73,7 @@ dt_viscous = 0.125 * h0**2/nu
 dt_force = 0.25 * np.sqrt(h0/abs(gravity_y))
 
 tdamp = 1.0
-tf = 4.0
+tf = 16.0
 dt = 0.75 * min(dt_cfl, dt_viscous, dt_force)
 output_at_times = np.arange(0.25, 2.1, 0.25)
 
@@ -236,8 +236,8 @@ class HydrostaticTankMaterials(Application):
 
     def create_solver(self):
         # Create the kernel
-        #kernel = Gaussian(dim=2)
-        kernel = QuinticSpline(dim=2)
+        kernel = Gaussian(dim=2)
+        # kernel = QuinticSpline(dim=2)
 
         integrator = PECIntegrator(fluid=WCSPHStep())
 

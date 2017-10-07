@@ -190,7 +190,7 @@ class HydrostaticTankMaterials(Application):
         solid.rho[:] = rho0
 
         water.rho0[:] = rho0
-        oil.rho0[:] = rho0
+        oil.rho0[:] = rho0 * 0.9
         solid.rho0[:] = rho0
 
         # mass is set to get the reference density of rho0
@@ -202,7 +202,7 @@ class HydrostaticTankMaterials(Application):
         solid.V[:] = 1./volume
 
         water.m[:] = volume * rho0
-        oil.m[:] = volume * rho0 * 0.9
+        oil.m[:] = volume * rho0
         solid.m[:] = volume * rho0
 
         # smoothing lengths
@@ -236,8 +236,8 @@ class HydrostaticTankMaterials(Application):
 
     def create_solver(self):
         # Create the kernel
-        kernel = Gaussian(dim=2)
-        # kernel = QuinticSpline(dim=2)
+        # kernel = Gaussian(dim=2)
+        kernel = QuinticSpline(dim=2)
 
         integrator = PECIntegrator(fluid=WCSPHStep())
 

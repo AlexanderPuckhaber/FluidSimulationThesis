@@ -202,7 +202,7 @@ class HydrostaticTankMaterials(Application):
         solid.V[:] = 1./volume
 
         water.m[:] = volume * rho0
-        oil.m[:] = volume * rho0
+        oil.m[:] = volume * rho0 * 0.9
         solid.m[:] = volume * rho0
 
         # smoothing lengths

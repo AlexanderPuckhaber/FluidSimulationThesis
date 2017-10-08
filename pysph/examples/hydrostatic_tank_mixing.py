@@ -273,7 +273,9 @@ class HydrostaticTankMaterials(Application):
             
             # Equation of state is typically the Tait EOS with a suitable
             # exponent gamma
-            
+            Group(equations=[
+                TaitEOSHGCorrection(dest='fluid', sources=None, rho0=rho0, c0=c0, gamma=gamma),
+                ], ),
             
             # The boundary conditions are imposed by extrapolating the fluid
             # pressure, taking into consideration the boundary acceleration

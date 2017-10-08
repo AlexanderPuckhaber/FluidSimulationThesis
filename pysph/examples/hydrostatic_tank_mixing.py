@@ -186,8 +186,11 @@ class HydrostaticTankMaterials(Application):
         
         ##### INITIALIZE PARTICLE PROPS #####
         water.rho[:] = rho0
+        waterRho = rho0
         oil.rho[:] = rho0
+        oilRho = rho0
         solid.rho[:] = rho0
+        solidRho = rho0
 
 
         # mass is set to get the reference density of rho0
@@ -195,16 +198,18 @@ class HydrostaticTankMaterials(Application):
 
         volumeTarget = 1./volume
 
-        
+        waterMass = volumeTarget * waterRho
+        oilMass = volumeTarget * oilRho
+        solidMass = volumeTarget * solidRho
 
-        water.m[:] = volumeTarget * rho0
-        oil.m[:] = volumeTarget * rho0
-        solid.m[:] = volumeTarget * rho0
+        water.m[:] = waterMass
+        oil.m[:] = oilMass
+        solid.m[:] = solidMass
 
         # volume is set to density/mass
-        water.V[:] = water.rho[0]/water.m[0]
-        oil.V[:] = oil.rho[0]/oil.rho[0]
-        solid.V[:] = solid.rho[0]/solid.m[0]
+        water.V[:] = waterRho/waterMass
+        oil.V[:] = oilRho/oilMass
+        solid.V[:] = solidRho/solidMass
 
         # smoothing lengths
         water.h[:] = hdx * dx

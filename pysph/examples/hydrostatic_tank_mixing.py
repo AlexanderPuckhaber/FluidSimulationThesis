@@ -202,7 +202,7 @@ class HydrostaticTankMaterials(Application):
         VTarget = 1./volume
 
         waterMass = volume * waterRho
-        oilMass = volume * oilRho * 0.99
+        oilMass = volume * oilRho * 0.5
         solidMass = volume * solidRho
 
         water.m[:] = waterMass

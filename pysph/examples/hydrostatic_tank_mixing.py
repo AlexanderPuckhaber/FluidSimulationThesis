@@ -213,9 +213,9 @@ class HydrostaticTankMaterials(Application):
         print('volume', volume, 'VTarget', VTarget, 'oilRho', oilRho, 'oilMass', oilMass, 'oil.V', oilRho/oilMass)
 
         # volume is set to density/mass
-        # water.V[:] = waterRho/waterMass
-        # oil.V[:] = oilRho/oilMass
-        # solid.V[:] = solidRho/solidMass
+        water.V[:] = waterRho/waterMass
+        oil.V[:] = oilRho/oilMass
+        solid.V[:] = solidRho/solidMass
 
         # smoothing lengths
         water.h[:] = hdx * dx
@@ -273,9 +273,7 @@ class HydrostaticTankMaterials(Application):
             
             # Equation of state is typically the Tait EOS with a suitable
             # exponent gamma
-            Group(equations=[
-                TaitEOS(dest='fluid', sources=None, rho0=rho0, c0=c0, gamma=gamma),
-                ], ),
+            
             
             # The boundary conditions are imposed by extrapolating the fluid
             # pressure, taking into consideration the boundary acceleration

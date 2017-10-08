@@ -73,7 +73,7 @@ dt_viscous = 0.125 * h0**2/nu
 dt_force = 0.25 * np.sqrt(h0/abs(gravity_y))
 
 tdamp = 1.0
-tf = 16.0
+tf = 4.0
 dt = 0.75 * min(dt_cfl, dt_viscous, dt_force)
 output_at_times = np.arange(0.25, 2.1, 0.25)
 
@@ -186,12 +186,9 @@ class HydrostaticTankMaterials(Application):
         
         ##### INITIALIZE PARTICLE PROPS #####
         water.rho[:] = rho0
-        oil.rho[:] = rho0 * 0.5
+        oil.rho[:] = rho0
         solid.rho[:] = rho0
 
-        water.rho0[:] = rho0
-        oil.rho0[:] = rho0 * 0.5
-        solid.rho0[:] = rho0
 
         # mass is set to get the reference density of rho0
         volume = dx * dx
@@ -202,7 +199,7 @@ class HydrostaticTankMaterials(Application):
         solid.V[:] = 1./volume
 
         water.m[:] = volume * rho0
-        oil.m[:] = volume * rho0 * 0.5
+        oil.m[:] = volume * rho0
         solid.m[:] = volume * rho0
 
         # smoothing lengths

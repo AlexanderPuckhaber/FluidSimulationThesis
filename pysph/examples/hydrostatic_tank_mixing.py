@@ -193,14 +193,18 @@ class HydrostaticTankMaterials(Application):
         # mass is set to get the reference density of rho0
         volume = dx * dx
 
-        # volume is set as dx^2
-        water.V[:] = 1./volume
-        oil.V[:] = 1./volume
-        solid.V[:] = 1./volume
+        volumeTarget = 1./volume
 
-        water.m[:] = volume * rho0
-        oil.m[:] = volume * rho0
-        solid.m[:] = volume * rho0
+        
+
+        water.m[:] = volumeTarget * rho0
+        oil.m[:] = volumeTarget * rho0
+        solid.m[:] = volumeTarget * rho0
+
+        # volume is set to density/mass
+        water.V[:] = water.rho[0]/water.m[0]
+        oil.V[:] = oil.rho[0]/oil.rho[0]
+        solid.V[:] = solid.rho[0]/solid.m[0]
 
         # smoothing lengths
         water.h[:] = hdx * dx

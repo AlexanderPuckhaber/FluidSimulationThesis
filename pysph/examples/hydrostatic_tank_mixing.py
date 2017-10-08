@@ -185,9 +185,9 @@ class HydrostaticTankMaterials(Application):
         # oil.copy_over_properties(materials.generateFullParticleProperties())
         
         ##### INITIALIZE PARTICLE PROPS #####
-        water.rho[:] = rho0 * 1.1
-        water.rho0[:] = rho0 * 1.1
-        waterRho = rho0 * 1.1
+        water.rho[:] = rho0 * 1.0
+        water.rho0[:] = rho0 * 1.0
+        waterRho = rho0 * 1.0
         oil.rho[:] = rho0
         oil.rho0[:] = rho0
         oilRho = rho0

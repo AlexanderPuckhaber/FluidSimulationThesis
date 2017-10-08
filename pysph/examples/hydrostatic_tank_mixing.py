@@ -202,7 +202,7 @@ class HydrostaticTankMaterials(Application):
         VTarget = 1./volume
 
         waterMass = volume * waterRho
-        oilMass = volume * oilRho * 0.05
+        oilMass = volume * oilRho * 1.0
         solidMass = volume * solidRho
 
         water.m[:] = waterMass
@@ -288,7 +288,7 @@ class HydrostaticTankMaterials(Application):
             Group(equations=[
 
                 # Continuity equation
-                ContinuityEquation(dest='fluid', sources=['fluid', 'solid']),
+                # ContinuityEquation(dest='fluid', sources=['fluid', 'solid']),
 
                 # Pressure gradient with acceleration damping
                 MomentumEquationPressureGradient(

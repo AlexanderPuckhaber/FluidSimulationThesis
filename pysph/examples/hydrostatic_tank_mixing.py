@@ -26,6 +26,8 @@ from pysph.sph.basic_equations import SummationDensity
 from pysph.sph.misc.diffusion import DiffuseMaterial
 # Material class I am working on
 from pysph.sph.misc.mixture_particle import MixtureParticle
+# Modified TaitEOSHGCorrection to account for different rho0 values of Mixture Particles
+from pysph.sph.misc.mixture_particle_equations import TaitEOSHGCorrectionVariableRho
 
 # Equations for REF1
 from pysph.sph.wc.transport_velocity import VolumeFromMassDensity, \
@@ -274,7 +276,7 @@ class HydrostaticTankMaterials(Application):
             # Equation of state is typically the Tait EOS with a suitable
             # exponent gamma
             Group(equations=[
-                TaitEOSHGCorrection(dest='fluid', sources=None, rho0=rho0, c0=c0, gamma=gamma),
+                TaitEOSHGCorrectionVariableRho(dest='fluid', sources=None, c0=c0, gamma=gamma),
                 ], ),
             
             # The boundary conditions are imposed by extrapolating the fluid
@@ -288,7 +290,7 @@ class HydrostaticTankMaterials(Application):
             Group(equations=[
 
                 # Continuity equation
-                # ContinuityEquation(dest='fluid', sources=['fluid', 'solid']),
+                ContinuityEquation(dest='fluid', sources=['fluid', 'solid']),
 
                 # Pressure gradient with acceleration damping
                 MomentumEquationPressureGradient(

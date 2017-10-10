@@ -96,7 +96,7 @@ class HydrostaticTankMaterials(Application):
     def create_particles(self):
 
         # create mixture particle
-        materials = MixtureParticle()
+        materials = MixtureParticle(baseProperties={'rho0': 1000})
         materials.addMaterial('water', {'_frac':0.8, 'm':0.10})
         materials.addMaterial('oil', {'_frac':0.2, 'm':0.09})
 
@@ -187,9 +187,9 @@ class HydrostaticTankMaterials(Application):
         # oil.copy_over_properties(materials.generateFullParticleProperties())
         
         ##### INITIALIZE PARTICLE PROPS #####
-        water.rho[:] = rho0 * 1.00
-        water.rho0[:] = rho0 * 1.00
-        waterRho = rho0 * 1.00
+        water.rho[:] = rho0 * 1.1
+        water.rho0[:] = rho0 * 1.1
+        waterRho = rho0 * 1.1
         oil.rho[:] = rho0
         oil.rho0[:] = rho0
         oilRho = rho0
@@ -276,7 +276,7 @@ class HydrostaticTankMaterials(Application):
             # Equation of state is typically the Tait EOS with a suitable
             # exponent gamma
             Group(equations=[
-                TaitEOSHGCorrectionVariableRho(dest='fluid', sources=None, c0=c0, gamma=gamma),
+                TaitEOSHGCorrectionVariableRho(dest='fluid', sources=None,  c0=c0, gamma=gamma),
                 ], ),
             
             # The boundary conditions are imposed by extrapolating the fluid

@@ -27,7 +27,9 @@ from pysph.sph.misc.diffusion import DiffuseMaterial
 # Material class I am working on
 from pysph.sph.misc.mixture_particle import MixtureParticle
 # Modified TaitEOSHGCorrection to account for different rho0 values of Mixture Particles
-from pysph.sph.misc.mixture_particle_equations import TaitEOSHGCorrectionVariableRho
+from pysph.sph.misc.mixture_particle_equations import TaitEOSHGCorrectionVariableRho, StateEquationVariableRho0, TVFSchemeMixtureParticle
+from pysph.sph.wc.transport_velocity import StateEquation
+from pysph.sph.scheme import TVFScheme
 
 # Equations for REF1
 from pysph.sph.wc.transport_velocity import VolumeFromMassDensity, \
@@ -50,14 +52,17 @@ from pysph.sph.basic_equations import XSPHCorrection, \
 length_x = 2.0; length_y = 1.0; liquid_height = 0.5; air_height = 0.5
 liquid1_length = length_x / 2.0; liquid2_length = length_x / 2.0
 
-fluid_name = 'water'
-solid_name = ['solid']
 
 gravity_y = -1.0
 Vmax = np.sqrt(abs(gravity_y) * liquid_height)
 c0 = 10 * Vmax; 
-rho0 = 1000.0
-p0 = c0*c0*rho0
+# density for the two phases
+rho1 = 10.0
+rho2 = 5.0
+
+# pressure for the two phases
+p1 = c0*c0*rho1
+p2 = c0*c0*rho2
 gamma = 1.0
 
 # Reynolds number and kinematic viscosity
@@ -75,7 +80,7 @@ dt_viscous = 0.125 * h0**2/nu
 dt_force = 0.25 * np.sqrt(h0/abs(gravity_y))
 
 tdamp = 1.0
-tf = 4.0
+tf = 16.0
 dt = 0.75 * min(dt_cfl, dt_viscous, dt_force)
 output_at_times = np.arange(0.25, 2.1, 0.25)
 
@@ -86,17 +91,18 @@ def damping_factor(t, tdamp):
         return 1.0
 
 class HydrostaticTankMaterials(Application):
-    def add_user_options(self, group):
-        group.add_argument(
-            '--bc-type', action='store', type=int,
-            dest='bc_type', default=1,
-            help="Specify the implementation type one of (1, 2, 3)"
+    def create_scheme(self):
+        s = TVFSchemeMixtureParticle(
+            ['fluid1', 'fluid2'], ['solid'], dim=2, rho0=rho1, c0=c0, nu=nu,
+            p0=p1, pb=p1, h0=dx*hdx, gy=gravity_y
         )
-    
+        s.configure_solver(tf=tf, dt=dt, pfreq=500)
+        return s
+
     def create_particles(self):
 
         # create mixture particle
-        materials = MixtureParticle(baseProperties={'rho00': 1000})
+        materials = MixtureParticle(baseProperties={'rho0': rho1, 'p0': p1})
         materials.addMaterial('water', {'_frac':0.8, 'm':0.10})
         materials.addMaterial('oil', {'_frac':0.2, 'm':0.09})
 
@@ -145,8 +151,8 @@ class HydrostaticTankMaterials(Application):
             else:
                 water_indicies.append(i)
 
-        water = fluid.extract_particles(water_indicies); water.set_name('fluid')
-        oil = fluid.extract_particles(oil_indicies); oil.set_name('fluid')
+        water = fluid.extract_particles(water_indicies); water.set_name('fluid1')
+        oil = fluid.extract_particles(oil_indicies); oil.set_name('fluid2')
 
         fluid.remove_particles(fluid_indices)
 
@@ -176,29 +182,44 @@ class HydrostaticTankMaterials(Application):
             water.add_property(name)
             oil.add_property(name)
 
-        for propertyName in materials.generateFullParticleProperties():
-            water.add_property(propertyName, type='double', default=materials.getPropertyValue(propertyName))
-            oil.add_property(propertyName, type='double', default=materials.getPropertyValue(propertyName))
-
-        print('water default', water.default_values)
-        print('oil default', oil.default_values)
 
         # water.copy_over_properties(materials.generateFullParticleProperties())
         # oil.copy_over_properties(materials.generateFullParticleProperties())
         
         ##### INITIALIZE PARTICLE PROPS #####
-        waterRho = rho0 * 1.0
+        waterRho = rho1
         water.rho[:] = waterRho
         water.rho0[:] = waterRho
         
-        oilRho = rho0 * 0.9
+        oilRho = rho2
         oil.rho[:] = oilRho
         oil.rho0[:] = oilRho
         
-        solidRho = rho0
+        solidRho = rho1
         solid.rho[:] = solidRho
         solid.rho0[:] = solidRho
         
+        self.scheme.setup_properties([solid, water, oil])
+
+        for propertyName in materials.generateFullParticleProperties():
+            water.add_property(propertyName, type='double', default=materials.getPropertyValue(propertyName))
+            oil.add_property(propertyName, type='double', default=materials.getPropertyValue(propertyName))
+
+        # fix this
+        waterRho = rho1
+        water.rho[:] = waterRho
+        water.rho0[:] = waterRho
+        
+        oilRho = rho2
+        oil.rho[:] = oilRho
+        oil.rho0[:] = oilRho
+        
+        solidRho = rho1
+        solid.rho[:] = solidRho
+        # solid.rho0[:] = solidRho
+
+        print('water default', water.default_values)
+        print('oil default', oil.default_values)
 
         # mass is set to get the reference density of rho0
         volume = dx * dx
@@ -227,7 +248,7 @@ class HydrostaticTankMaterials(Application):
         solid.h[:] = hdx * dx
 
         
-        properties_to_save = ['pid', 'tag', 'gid', 'rho', 'V', 'h', 'm', 'p', 'u', 'w', 'v', 'y', 'x', 'div', 'z']
+        properties_to_save = ['pid', 'tag', 'gid', 'rho', 'V', 'h', 'm', 'p', 'u', 'w', 'v', 'y', 'x', 'z']
 
         for propertyName in materials.generateFullParticleProperties():
             properties_to_save.append(propertyName)
@@ -240,74 +261,41 @@ class HydrostaticTankMaterials(Application):
         water.set_output_arrays(properties_to_save)
         oil.set_output_arrays(properties_to_save)
 
-        # generate one particle array containing both water and oil
-        water_and_oil = water
-        water_and_oil.append_parray(oil)
-        
-
         #print('fluid material amount: ', fluid.material_amount, 'fluid props', fluid.properties.keys())
 
         # return the particle list
-        return [water_and_oil, solid]
+        
+        return [water, oil, solid]
 
-    def create_solver(self):
-        # Create the kernel
-        # kernel = Gaussian(dim=2)
-        kernel = QuinticSpline(dim=2)
 
-        integrator = PECIntegrator(fluid=WCSPHStep())
-
-        # Create a solver
-        solver = Solver(kernel = kernel, dim=2, integrator=integrator,
-                        tf=tf, dt=dt, output_at_times=output_at_times)
-        return solver
 
     def create_equations(self):
-        # Formulation for REF1
-        # (using only first set of equations for simplicity)
-        equations = [
+        # This is an ugly hack to support different densities for fluids.
+        # What we should really do is set rho0 as a fluid constant and rewrite
+        # the equations to use that, then once the fluid properties are
+        # defined, this will just work.
+        equations = super(HydrostaticTankMaterials, self).create_equations()
+        from pysph.sph.equation import Group
+        def process_term(x):
+            if hasattr(x, 'rho0'):
+                return True
+            if hasattr(x, 'p0'):
+                return True
+        
 
+        for eq in equations:
+            print(eq)
+            if isinstance(eq, Group):
+                for nestedEq in eq.equations:
+                    if isinstance(eq, StateEquation) and process_term(nestedEq):
+                        print('REMOVING: ', nestedEq)
+                        eq.equations.remove(nestedEq)
+            else:
+                 if isinstance(eq, StateEquation) and process_term(eq):
+                     print('REMOVING: ', eq)
+                     equations.remove(eq)
 
-            # For the multi-phase formulation, we require an estimate of the
-            # particle volume. This can be either defined from the particle
-            # number density or simply as the ratio of mass to density
-            Group(equations=[
-                VolumeFromMassDensity(dest='fluid', sources=None)
-                ], ),
-            
-            # Equation of state is typically the Tait EOS with a suitable
-            # exponent gamma
-            Group(equations=[
-                TaitEOSHGCorrectionVariableRho(dest='fluid', sources=None,  c0=c0, gamma=gamma),
-                ], ),
-            
-            # The boundary conditions are imposed by extrapolating the fluid
-            # pressure, taking into consideration the boundary acceleration
-            Group(equations=[
-                SolidWallPressureBC(dest='solid', sources=['fluid'], b=1.0, gy=gravity_y,
-                                    rho0=rho0, p0=p0)
-            ], ),
-
-            # Main acceleration block
-            Group(equations=[
-
-                # Continuity equation
-                ContinuityEquation(dest='fluid', sources=['fluid', 'solid']),
-
-                # Pressure gradient with acceleration damping
-                MomentumEquationPressureGradient(
-                    dest='fluid', sources=['fluid', 'solid'], pb=0.0, gy=gravity_y,
-                    tdamp=tdamp),
-
-                # artificial viscosity for stability
-                MomentumEquationArtificialViscosity(
-                    dest='fluid', sources=['fluid', 'solid'], alpha=0.24, c0=c0),
-
-                # Position step with XSPH
-                XSPHCorrection(dest='fluid', sources=['fluid'], eps=0.0)
-                ]),
-        ]
-
+        print('NEW EQUATIONS', equations, 'END NEW EQUATIONS')
         return equations
 
 if __name__ == '__main__':

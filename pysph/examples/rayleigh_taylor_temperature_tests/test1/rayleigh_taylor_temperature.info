@@ -1,0 +1,1 @@
+{"cpu_time": 0, "completed": false, "args": ["-d", "rayleigh_taylor_temperature_tests/test1"], "output_dir": "/home/alexander/Desktop/PySPH-Develop/pysph/examples/rayleigh_taylor_temperature_tests/test1", "fname": "rayleigh_taylor_temperature"}

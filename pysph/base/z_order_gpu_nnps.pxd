@@ -20,10 +20,13 @@ cdef class ZOrderGPUNNPS(GPUNNPS):
     cdef list max_cid
     cdef object dst_to_src
     cdef object overflow_cid_to_idx
+    cdef object curr_cid
+    cdef object max_cid_src
 
     cdef object helper
+    cdef object radix_sort
+    cdef object make_vec
 
-    cdef public bint use_double
     cdef bint _sorted
     cdef bint dst_src
 
@@ -36,4 +39,3 @@ cdef class ZOrderGPUNNPS(GPUNNPS):
     cdef void find_neighbor_lengths(self, nbr_lengths)
 
     cdef void find_nearest_neighbors_gpu(self, nbrs, start_indices)
-

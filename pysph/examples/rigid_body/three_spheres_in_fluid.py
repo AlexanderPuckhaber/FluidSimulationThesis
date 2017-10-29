@@ -1,4 +1,5 @@
-"""A sphere of density 500 falling into a hydrostatic tank (15 minutes)
+"""Three sphere of different density falling into a hydrostatic tank
+implemented using Akinci in 2d. (15 minutes)
 
 Check basic equations of SPH to throw a ball inside the vessel
 """
@@ -15,20 +16,20 @@ from pysph.sph.integrator import EPECIntegrator
 from pysph.sph.integrator_step import WCSPHStep
 
 from pysph.sph.equation import Group
-from pysph.sph.basic_equations import (XSPHCorrection, ContinuityEquation,
-                                       SummationDensity)
+from pysph.sph.basic_equations import (XSPHCorrection, SummationDensity)
 from pysph.sph.wc.basic import TaitEOSHGCorrection, MomentumEquation
 from pysph.solver.application import Application
-from pysph.sph.rigid_body import (BodyForce, RigidBodyCollision, LiuFluidForce,
-                                  RigidBodyMoments, RigidBodyMotion,
-                                  RK2StepRigidBody)
+from pysph.sph.rigid_body import (
+    BodyForce, SummationDensityBoundary, RigidBodyCollision,
+    RigidBodyMoments, RigidBodyMotion, AkinciRigidFluidCoupling,
+    RK2StepRigidBody)
 
 
 def create_boundary():
     dx = 2
 
     # bottom particles in tank
-    xb = np.arange(-2 * dx, 100 + 2 * dx, dx)
+    xb = np.arange(-2 * dx, 500 + 2 * dx, dx)
     yb = np.arange(-2 * dx, 0, dx)
     xb, yb = np.meshgrid(xb, yb)
     xb = xb.ravel()
@@ -40,7 +41,7 @@ def create_boundary():
     xl = xl.ravel()
     yl = yl.ravel()
 
-    xr = np.arange(100, 100 + 2 * dx, dx)
+    xr = np.arange(500, 500 + 2 * dx, dx)
     yr = np.arange(0, 250, dx)
     xr, yr = np.meshgrid(xr, yr)
     xr = xr.ravel()
@@ -54,7 +55,7 @@ def create_boundary():
 
 def create_fluid():
     dx = 2
-    xf = np.arange(0, 100, dx)
+    xf = np.arange(0, 500, dx)
     yf = np.arange(0, 150, dx)
     xf, yf = np.meshgrid(xf, yf)
     xf = xf.ravel()
@@ -74,9 +75,33 @@ def create_sphere(dx=1):
     x = x[p]
     y = y[p]
 
-    # lower sphere a little
-    y = y - 20
     return x * 1e-3, y * 1e-3
+
+
+def create_three_spheres():
+    x_cube1, y_cube1 = create_sphere()
+    x_cube2, y_cube2 = x_cube1 + 200 * 1e-3, y_cube1
+    x_cube3, y_cube3 = x_cube2 + 200 * 1e-3, y_cube1
+
+    x_cube = np.concatenate([x_cube1, x_cube2, x_cube3])
+    y_cube = np.concatenate([y_cube1, y_cube2, y_cube3])
+    return x_cube, y_cube
+
+
+def properties_of_three_spheres():
+    x_cube, y_cube = create_sphere()
+    b_id = np.array([])
+
+    b_id1 = np.ones_like(x_cube, dtype=int) * 0
+    rho_1 = np.ones_like(x_cube, dtype=int) * 2000
+    b_id2 = np.ones_like(x_cube, dtype=int) * 1
+    rho_2 = np.ones_like(x_cube, dtype=int) * 1000
+    b_id3 = np.ones_like(x_cube, dtype=int) * 2
+    rho_3 = np.ones_like(x_cube, dtype=int) * 500
+
+    b_id = np.concatenate([b_id1, b_id2, b_id3])
+    rho = np.concatenate([rho_1, rho_2, rho_3])
+    return b_id, rho
 
 
 def get_density(y):
@@ -95,12 +120,12 @@ def get_density(y):
 
 
 def geometry():
+    import matplotlib.pyplot as plt
     # please run this function to know how
     # geometry looks like
-    import matplotlib.pyplot as plt
     x_tank, y_tank = create_boundary()
     x_fluid, y_fluid = create_fluid()
-    x_cube, y_cube = create_sphere()
+    x_cube, y_cube = create_three_spheres()
     plt.scatter(x_fluid, y_fluid)
     plt.scatter(x_tank, y_tank)
     plt.scatter(x_cube, y_cube)
@@ -122,43 +147,47 @@ class RigidFluidCoupling(Application):
     def create_particles(self):
         """Create the circular patch of fluid."""
         xf, yf = create_fluid()
-        rho = get_density(yf)
-        m = rho[:] * self.dx * self.dx
-        rho = np.ones_like(xf) * self.ro
-        h = np.ones_like(xf) * self.hdx * self.dx
+        m = self.ro * self.dx * self.dx
+        rho = self.ro
+        h = self.hdx * self.dx
         fluid = get_particle_array_wcsph(x=xf, y=yf, h=h, m=m, rho=rho,
                                          name="fluid")
 
+        dx = 2
         xt, yt = create_boundary()
-        m = np.ones_like(xt) * 1000 * self.dx * self.dx
-        rho = np.ones_like(xt) * 1000
-        rad_s = np.ones_like(xt) * 2 / 2. * 1e-3
-        h = np.ones_like(xt) * self.hdx * self.dx
+        m = 1000 * self.dx * self.dx
+        rho = 1000
+        rad_s = 2 / 2. * 1e-3
+        h = self.hdx * self.dx
+        V = dx * dx * 1e-6
         tank = get_particle_array_wcsph(x=xt, y=yt, h=h, m=m, rho=rho,
-                                        rad_s=rad_s, name="tank")
+                                        rad_s=rad_s, V=V, name="tank")
+        for name in ['fx', 'fy', 'fz']:
+            tank.add_property(name)
 
         dx = 1
-        xc, yc = create_sphere(1)
-        m = np.ones_like(xc) * self.solid_rho * dx * 1e-3 * dx * 1e-3
-        rho = np.ones_like(xc) * self.solid_rho
-        h = np.ones_like(xc) * self.hdx * self.dx
-        rad_s = np.ones_like(xc) * dx / 2. * 1e-3
-        # add cs property to run the simulation
-        cs = np.zeros_like(xc)
+        xc, yc = create_three_spheres()
+        b_id, rho = properties_of_three_spheres()
+        m = rho * dx * 1e-3 * dx * 1e-3
+        h = self.hdx * self.dx
+        rad_s = dx / 2. * 1e-3
+        V = dx * dx * 1e-6
+        cs = 0.0
         cube = get_particle_array_rigid_body(x=xc, y=yc, h=h, m=m, rho=rho,
-                                             rad_s=rad_s, cs=cs, name="cube")
+                                             rad_s=rad_s, V=V, cs=cs,
+                                             body_id=b_id, name="cube")
 
         return [fluid, tank, cube]
 
     def create_solver(self):
         kernel = CubicSpline(dim=2)
 
-        integrator = EPECIntegrator(fluid=WCSPHStep(), tank=WCSPHStep(),
+        integrator = EPECIntegrator(fluid=WCSPHStep(),
                                     cube=RK2StepRigidBody())
 
         dt = 0.125 * self.dx * self.hdx / (self.co * 1.1) / 2.
         print("DT: %s" % dt)
-        tf = .5
+        tf = 2.8
         solver = Solver(
             kernel=kernel,
             dim=2,
@@ -171,38 +200,33 @@ class RigidFluidCoupling(Application):
 
     def create_equations(self):
         equations = [
-            Group(
-                equations=[
-                    BodyForce(dest='cube', sources=None, gy=-9.81),
-                    SummationDensity(dest='cube', sources=['fluid', 'cube'])
-                ],
-                real=False),
             Group(equations=[
-                TaitEOSHGCorrection(dest='cube', sources=None,
-                                    rho0=self.solid_rho, c0=self.co,
-                                    gamma=7.0),
+                BodyForce(dest='cube', sources=None, gy=-9.81),
+            ], real=False),
+            Group(equations=[
+                SummationDensity(
+                    dest='fluid',
+                    sources=['fluid'], ),
+                SummationDensityBoundary(
+                    dest='fluid', sources=['tank', 'cube'], fluid_rho=1000.0)
+            ]),
+
+            # Tait equation of state
+            Group(equations=[
                 TaitEOSHGCorrection(dest='fluid', sources=None, rho0=self.ro,
-                                    c0=self.co, gamma=7.0),
-                TaitEOSHGCorrection(dest='tank', sources=None, rho0=self.ro,
                                     c0=self.co, gamma=7.0),
             ], real=False),
             Group(equations=[
-                ContinuityEquation(
-                    dest='fluid',
-                    sources=['fluid', 'tank', 'cube'], ),
-                ContinuityEquation(
-                    dest='tank',
-                    sources=['fluid', 'tank', 'cube'], ),
-                MomentumEquation(dest='fluid', sources=[
-                    'fluid', 'tank', 'cube'
-                ], alpha=self.alpha, beta=0.0, c0=self.co, gy=-9.81),
-                LiuFluidForce(
-                    dest='fluid',
-                    sources=['cube'], ),
+                MomentumEquation(dest='fluid', sources=['fluid'],
+                                 alpha=self.alpha, beta=0.0, c0=self.co,
+                                 gy=-9.81),
+                AkinciRigidFluidCoupling(dest='fluid',
+                                         sources=['cube', 'tank']),
                 XSPHCorrection(dest='fluid', sources=['fluid', 'tank']),
             ]),
             Group(equations=[
-                RigidBodyCollision(dest='cube', sources=['tank'], kn=1e5)
+                RigidBodyCollision(dest='cube', sources=['tank', 'cube'],
+                                   kn=1e5)
             ]),
             Group(equations=[RigidBodyMoments(dest='cube', sources=None)]),
             Group(equations=[RigidBodyMotion(dest='cube', sources=None)]),

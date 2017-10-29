@@ -15,13 +15,12 @@ from pysph.sph.integrator import EPECIntegrator
 from pysph.sph.integrator_step import WCSPHStep
 
 from pysph.sph.equation import Group
-from pysph.sph.basic_equations import (XSPHCorrection, ContinuityEquation,
-                                       SummationDensity)
+from pysph.sph.basic_equations import (XSPHCorrection, SummationDensity)
 from pysph.sph.wc.basic import TaitEOSHGCorrection, MomentumEquation
 from pysph.solver.application import Application
-from pysph.sph.rigid_body import (BodyForce, RigidBodyCollision, LiuFluidForce,
-                                  RigidBodyMoments, RigidBodyMotion,
-                                  RK2StepRigidBody)
+from pysph.sph.rigid_body import (
+    BodyForce, SummationDensityBoundary, RigidBodyCollision, RigidBodyMoments,
+    RigidBodyMotion, AkinciRigidFluidCoupling, RK2StepRigidBody)
 
 
 def create_boundary():
@@ -95,9 +94,9 @@ def get_density(y):
 
 
 def geometry():
+    import matplotlib.pyplot as plt
     # please run this function to know how
     # geometry looks like
-    import matplotlib.pyplot as plt
     x_tank, y_tank = create_boundary()
     x_fluid, y_fluid = create_fluid()
     x_cube, y_cube = create_sphere()
@@ -122,31 +121,35 @@ class RigidFluidCoupling(Application):
     def create_particles(self):
         """Create the circular patch of fluid."""
         xf, yf = create_fluid()
-        rho = get_density(yf)
-        m = rho[:] * self.dx * self.dx
-        rho = np.ones_like(xf) * self.ro
-        h = np.ones_like(xf) * self.hdx * self.dx
+        m = self.ro * self.dx * self.dx
+        rho = self.ro
+        h = self.hdx * self.dx
         fluid = get_particle_array_wcsph(x=xf, y=yf, h=h, m=m, rho=rho,
                                          name="fluid")
 
+        dx = 2
         xt, yt = create_boundary()
-        m = np.ones_like(xt) * 1000 * self.dx * self.dx
-        rho = np.ones_like(xt) * 1000
-        rad_s = np.ones_like(xt) * 2 / 2. * 1e-3
-        h = np.ones_like(xt) * self.hdx * self.dx
+        m = 1000 * self.dx * self.dx
+        rho = 1000
+        rad_s = 2 / 2. * 1e-3
+        h = self.hdx * self.dx
+        V = dx * dx * 1e-6
         tank = get_particle_array_wcsph(x=xt, y=yt, h=h, m=m, rho=rho,
-                                        rad_s=rad_s, name="tank")
+                                        rad_s=rad_s, V=V, name="tank")
+        for name in ['fx', 'fy', 'fz']:
+            tank.add_property(name)
 
         dx = 1
         xc, yc = create_sphere(1)
-        m = np.ones_like(xc) * self.solid_rho * dx * 1e-3 * dx * 1e-3
-        rho = np.ones_like(xc) * self.solid_rho
-        h = np.ones_like(xc) * self.hdx * self.dx
-        rad_s = np.ones_like(xc) * dx / 2. * 1e-3
-        # add cs property to run the simulation
-        cs = np.zeros_like(xc)
+        m = self.solid_rho * dx * 1e-3 * dx * 1e-3
+        rho = self.solid_rho
+        h = self.hdx * self.dx
+        rad_s = dx / 2. * 1e-3
+        V = dx * dx * 1e-6
+        cs = 0.0
         cube = get_particle_array_rigid_body(x=xc, y=yc, h=h, m=m, rho=rho,
-                                             rad_s=rad_s, cs=cs, name="cube")
+                                             rad_s=rad_s, V=V, cs=cs,
+                                             name="cube")
 
         return [fluid, tank, cube]
 
@@ -157,8 +160,9 @@ class RigidFluidCoupling(Application):
                                     cube=RK2StepRigidBody())
 
         dt = 0.125 * self.dx * self.hdx / (self.co * 1.1) / 2.
+        # dt = 1e-4
         print("DT: %s" % dt)
-        tf = .5
+        tf = 0.5
         solver = Solver(
             kernel=kernel,
             dim=2,
@@ -171,34 +175,28 @@ class RigidFluidCoupling(Application):
 
     def create_equations(self):
         equations = [
-            Group(
-                equations=[
-                    BodyForce(dest='cube', sources=None, gy=-9.81),
-                    SummationDensity(dest='cube', sources=['fluid', 'cube'])
-                ],
-                real=False),
             Group(equations=[
-                TaitEOSHGCorrection(dest='cube', sources=None,
-                                    rho0=self.solid_rho, c0=self.co,
-                                    gamma=7.0),
+                BodyForce(dest='cube', sources=None, gy=-9.81),
+            ], real=False),
+            Group(equations=[
+                SummationDensity(
+                    dest='fluid',
+                    sources=['fluid'], ),
+                SummationDensityBoundary(
+                    dest='fluid', sources=['tank', 'cube'], fluid_rho=1000.0)
+            ]),
+
+            # Tait equation of state
+            Group(equations=[
                 TaitEOSHGCorrection(dest='fluid', sources=None, rho0=self.ro,
-                                    c0=self.co, gamma=7.0),
-                TaitEOSHGCorrection(dest='tank', sources=None, rho0=self.ro,
                                     c0=self.co, gamma=7.0),
             ], real=False),
             Group(equations=[
-                ContinuityEquation(
-                    dest='fluid',
-                    sources=['fluid', 'tank', 'cube'], ),
-                ContinuityEquation(
-                    dest='tank',
-                    sources=['fluid', 'tank', 'cube'], ),
-                MomentumEquation(dest='fluid', sources=[
-                    'fluid', 'tank', 'cube'
-                ], alpha=self.alpha, beta=0.0, c0=self.co, gy=-9.81),
-                LiuFluidForce(
-                    dest='fluid',
-                    sources=['cube'], ),
+                MomentumEquation(dest='fluid', sources=['fluid'],
+                                 alpha=self.alpha, beta=0.0, c0=self.co,
+                                 gy=-9.81),
+                AkinciRigidFluidCoupling(dest='fluid',
+                                         sources=['cube', 'tank']),
                 XSPHCorrection(dest='fluid', sources=['fluid', 'tank']),
             ]),
             Group(equations=[

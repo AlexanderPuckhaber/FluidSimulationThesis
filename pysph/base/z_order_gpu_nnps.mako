@@ -1,21 +1,23 @@
 //CL//
 
+// IMPORTANT NOTE: pyopencl uses the length of the first argument
+// to determine the global work size
+
 <%def name="preamble()" cached="True">
 </%def>
 
 
 <%def name="fill_pids_args(data_t)" cached="True">
     ${data_t}* x, ${data_t}* y, ${data_t}* z, ${data_t} cell_size,
-    ${data_t} xmin, ${data_t} ymin, ${data_t} zmin,
-    unsigned long* keys, unsigned int* pids
+    ${data_t}3 min, unsigned long* keys, unsigned int* pids
 </%def>
 
 <%def name="fill_pids_src(data_t)" cached="True">
     unsigned long c_x, c_y, c_z;
     FIND_CELL_ID(
-        x[i] - xmin,
-        y[i] - ymin,
-        z[i] - zmin,
+        x[i] - min.x,
+        y[i] - min.y,
+        z[i] - min.z,
         cell_size, c_x, c_y, c_z
         );
     unsigned long key;
@@ -150,7 +152,7 @@
     }
 </%def>
 
-<%def name="z_order_nbrs_prep(data_t, sorted, dst_src)", cached="True">
+<%def name="z_order_nbrs_prep(data_t, sorted, dst_src)", cached="False">
      unsigned int qid;
 
     % if sorted:
@@ -184,6 +186,7 @@
     __global int* nbr_boxes = cid_to_idx;
     unsigned int start_id_nbr_boxes;
 
+
     % if dst_src:
         cid = dst_to_src[cid];
         start_id_nbr_boxes = 27*cid;
@@ -209,8 +212,10 @@
     ${data_t} cell_size
 </%def>
 
-<%def name="z_order_nbr_lengths_src(data_t, sorted, dst_src)" cached="True">
+<%def name="z_order_nbr_lengths_src(data_t, sorted, dst_src)" cached="False">
     ${z_order_nbrs_prep(data_t, sorted, dst_src)}
+
+    unsigned int length = 0;
 
     #pragma unroll
     for(j=0; j<27; j++)
@@ -227,15 +232,17 @@
             dist = NORM2(q.x - s_x[pid], q.y - s_y[pid], \
                     q.z - s_z[pid]);
             if(dist < h_i || dist < h_j)
-                nbr_lengths[qid] += 1;
+                length++;
             idx++;
         }
     }
 
+    nbr_lengths[qid] = length;
+
 </%def>
 
 
-<%def name="z_order_nbrs_args(data_t)" cached="True">
+<%def name="z_order_nbrs_args(data_t)" cached="False">
     ${data_t}* d_x, ${data_t}* d_y, ${data_t}* d_z,
     ${data_t}* d_h, ${data_t}* s_x, ${data_t}* s_y,
     ${data_t}* s_z, ${data_t}* s_h,
@@ -246,7 +253,7 @@
     ${data_t} radius_scale2, ${data_t} cell_size
 </%def>
 
-<%def name="z_order_nbrs_src(data_t, sorted, dst_src)" cached="True">
+<%def name="z_order_nbrs_src(data_t, sorted, dst_src)" cached="False">
     ${z_order_nbrs_prep(data_t, sorted, dst_src)}
 
     unsigned long start_idx = (unsigned long) start_indices[qid];

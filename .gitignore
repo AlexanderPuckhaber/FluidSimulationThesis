@@ -10,6 +10,7 @@
 *.npz
 *.pyd
 *.pdf
+.cache
 test.pyx
 PySPH.egg-info/
 build/
@@ -19,3 +20,7 @@ dist/
 *_output
 pysph/examples/test_runs
 pysph/examples/hydrostatic_tank_mixing_tests
+pysph/examples/hydrostatic_tank_mixing2_tests
+pysph/examples/rayleigh_taylor_temperature_tests
+pysph_env/
+ZOLTAN

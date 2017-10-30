@@ -74,21 +74,28 @@ class RayleighTaylorTemperature(Application):
             if fluid.y[i] > 1 - 0.15*np.sin(2*np.pi*fluid.x[i]):
                 indices.append(i)
 
-        fluid1 = fluid.extract_particles(indices); fluid1.set_name('fluid1')
+        fluid1 = fluid.extract_particles(indices); 
+        fluid1.set_name('fluid1')
         fluid2 = fluid
         fluid2.set_name('fluid2')
         fluid2.remove_particles(indices)
 
-        materials = MixtureParticle(baseProperties={'rho0': rho1, 'p0': p1, 't0': 270, 't': 270})
+        # add requisite properties to the arrays:
+        # self.scheme.setup_properties([solid])
+
+        materials = MixtureParticle(baseProperties={'V': 0, 'auhat': 0, 'avhat': 0, 'awhat': 0, 'what': 0, 'uhat': 0, 'vhat': 0, 'rho0': rho1, 'vmag2':0, 'p0': p1, 't0': 270, 't': 270})
 
         print('props', materials.generateFullParticleProperties())
 
-        # add requisite properties to the arrays:
-        self.scheme.setup_properties([fluid1, fluid2, solid])
+        
 
         for propertyName in materials.generateFullParticleProperties():
+            solid.add_property(propertyName, type='double', default=materials.getPropertyValue(propertyName))
             fluid1.add_property(propertyName, type='double', default=materials.getPropertyValue(propertyName))
             fluid2.add_property(propertyName, type='double', default=materials.getPropertyValue(propertyName))
+
+        for prop in ['wg', 'wf', 'vf', 'vg', 'ug', 'uf', 'wij']:
+            solid.add_property(prop)
 
         fluid1.rho[:] = rho1
         fluid1.rho0[:] = rho1
@@ -122,12 +129,16 @@ class RayleighTaylorTemperature(Application):
         fluid2.h[:] = hdx * dx
         solid.h[:] = hdx * dx
 
+        both_fluids = fluid1
+        both_fluids.append_parray(fluid2)
+        both_fluids.set_name('fluid')
+
         # return the arrays
-        return [fluid1, fluid2, solid]
+        return [both_fluids, solid]
 
     def create_scheme(self):
         s = TVFSchemeMixtureParticle(
-            ['fluid1', 'fluid2'], ['solid'], dim=2, rho0=rho1, c0=c0, nu=nu,
+            ['fluid'], ['solid'], dim=2, rho0=rho1, c0=c0, nu=nu,
             p0=p1, pb=p1, h0=dx*hdx, gy=gy
         )
         s.configure_solver(tf=tf, dt=dt, pfreq=500)
